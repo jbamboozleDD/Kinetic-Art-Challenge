@@ -3,32 +3,25 @@
 Servo LServo;
 Servo RServo;
 
-const byte RS = 2;  //right servo
-const byte LS = 3;  //left servo
-const byte ledPin = 4;
-const byte buttonPin1 = 7; //button to turn on/off servos
-const byte buttonPinR = 10; //button to track right servo
-const byte buttonPinL = 13; //button to track left servo
+const byte RS = 5;  //right servo
+const byte LS = 4;  //left servo
+const byte ledPin = 6;
+const byte buttonPin1 = 3; //button to turn on/off servos
 
+int j;
+int i;
+int Lpos = 180;
+int Rpos = 0;
+int count;
+int adj;
 
 byte currentButtonState1;
 byte previousButtonState1;   //these are used later to detect button push
-byte currentButtonStateR;
-byte previousButtonStateR;
-byte currentButtonStateL;
-byte previousButtonStateL;
-byte countR = 0;
-byte countL = 0;
-byte speedR = 82;   //90-180 is clockwise
-byte speedL = 102;    //0 - 90 is counterclockwise
-byte dif;
 
 unsigned long startMillis1;
-unsigned long startMillis2;
 unsigned long currentMillis;    //all millis stuff is to keep track of time
 
-const unsigned long period1 = 350;
-const unsigned long period2 = 5000;    //time periods
+const unsigned long period1 = 425;    //time periods
 
 byte prevMode;
 byte mode = 0;    //these three are used to control which code is run
@@ -38,14 +31,12 @@ void setup() {
   RServo.attach(RS);
   pinMode(ledPin, OUTPUT);
   pinMode(buttonPin1, INPUT);
-  pinMode(buttonPinR, INPUT);
-  pinMode(buttonPinL, INPUT);
   
   digitalWrite(ledPin, LOW);
-  LServo.write(93);
-  RServo.write(93);
+  LServo.write(180);
+  RServo.write(0);
   startMillis1 = millis();
-  startMillis2 = millis();
+  Serial.begin(9600);
 }
 
 void loop(){
@@ -53,56 +44,40 @@ void loop(){
   previousButtonState1 = currentButtonState1;
   currentButtonState1 = digitalRead(buttonPin1);
   prevMode = mode;
-  if (currentButtonState1 == LOW and previousButtonState1 == HIGH)  //if button is pressed change mode
+  if (currentButtonState1 == LOW && previousButtonState1 == HIGH)  //if button is pressed change mode
+  {
     mode = (mode + 1)%2;
+    adj = 1;
+    count = 0;
+  }
 
   switch(mode)
   {
     case 0:     //run blinking LED to let us know the program is running. Uses millis 1
-      LServo.write(93);
-      RServo.write(93);
+      if(Lpos != 180 && Rpos != 0)      //returns wings to starting position
+      {
+        Lpos++;       
+        Rpos--;
+        delay(5);
+      }
+      LServo.write(Lpos);
+      RServo.write(Rpos);
       if (currentMillis - startMillis1 >= period1)  //test whether the period has elapsed
       {
         digitalWrite(ledPin, !digitalRead(ledPin));  //if so, change the state of the LED
         startMillis1 = currentMillis;  //IMPORTANT to save the start time of the current LED state
       }
       break;
-    case 1:     //code for when the servos will run. Uses millis 2
-      digitalWrite(ledPin, HIGH);
-  	  LServo.write(speedL);
-    	RServo.write(speedR);
-      
-      previousButtonStateR = currentButtonStateR;
-      previousButtonStateL = currentButtonStateL;
-      if (currentMillis - startMillis2 <= period2)  //true until the period elapses
-      {
-        currentButtonStateR = digitalRead(buttonPinR);
-        if (currentButtonStateR == LOW and previousButtonStateR == HIGH)  //the button has become pressed
-        {
-          countR++;
-        }
-        currentButtonStateL = digitalRead(buttonPinL);
-        if (currentButtonStateL == LOW and previousButtonStateL == HIGH)  //the button has become pressed
-        {
-          countL++;
-        }
-      }
-      else  //after 5 secs it adjusts speed of servos if they are out of sync
-      {
-        if (countR > countL)
-        {
-          dif = countR - countL;    //adjusts speeds based on how out of sync they are
-          speedR = speedR + dif;    //CALCULATIONS DEPEND ON CLOCKWISE VS COUNTERCW
-          speedL = speedL + dif;
-        }
-        if (countL > countR)
-        {
-          dif = countR - countL;    //adjusts speeds based on how out of sync they are
-          speedR = speedR - dif;    //CALCULATIONS DEPEND ON CLOCKWISE VS COUNTERCW
-          speedL = speedL - dif;
-        }
-        startMillis2 = currentMillis;   //resets 5 sec timer
-      }
+    case 1:
+      digitalWrite(ledPin, HIGH);     //makes bird wings flap back and forth
+      Lpos -= adj;
+      Rpos += adj;
+      LServo.write(Lpos);
+      RServo.write(Rpos);
+      delay(5);
+      count++;
+      if((count % 180) == 0)
+        adj *= -1;
 
       break;
   }
